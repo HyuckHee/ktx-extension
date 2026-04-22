@@ -138,7 +138,8 @@ async function doSearch() {
               link.click();
             }
 
-            return { found: true, trainInfo: `${trainName} ${seatLabel} ${price}` };
+            const isWaiting = box.classList.contains('wait') || box.classList.contains('yms_wait');
+            return { found: true, trainInfo: `${trainName} ${seatLabel} ${price}`, isWaiting };
           }
         }
         return { found: false, message: `${tckLists.length}개 열차 확인 — 빈자리 없음` };
@@ -158,7 +159,8 @@ async function doSearch() {
       saveLog('⏸ 예매 진행 중 — 탐색 일시정지', 'info');
       // 1. 좌석 클릭 후 이용안내 팝업 먼저 처리 (노선에 따라 팝업 있을 수 있음)
       // 2. 팝업 없으면 바로 reservbtn 클릭
-      setTimeout(() => clickPopupOrReserveBtn(tab.id), 800);
+      const isWaiting = !!res.isWaiting;
+      setTimeout(() => clickPopupOrReserveBtn(tab.id, 0, isWaiting), 800);
     } else {
       saveLog(res?.message || '빈자리 없음');
       if (!isRunning) return;
@@ -190,11 +192,11 @@ function startSearch() {
 }
 
 // 좌석 클릭 후: 팝업 있으면 확인 → reservbtn / 팝업 없으면 바로 reservbtn
-async function clickPopupOrReserveBtn(tabId, attempt = 0) {
+async function clickPopupOrReserveBtn(tabId, attempt = 0, isWaiting = false) {
   if (!isRunning) return;
   if (attempt > 25) {
     saveLog('reservbtn 직접 시도', 'info');
-    clickReserveBtnInMainWorld(tabId);
+    clickReserveBtnInMainWorld(tabId, 0, isWaiting);
     return;
   }
 
@@ -202,7 +204,7 @@ async function clickPopupOrReserveBtn(tabId, attempt = 0) {
     target: { tabId },
     world: 'MAIN',
     func: () => {
-      const YES = ['확인', '네', '예', '동의'];
+      const YES = ['확인', '네', '예', '동의', '대기신청'];
       const POPUP_SELS = [
         '.ReactModal__Content', '.layerWrap', '.popup', '.pop_wrap',
         '.modal', '.layer_pop', '[role="dialog"]', '[role="alertdialog"]'
@@ -246,29 +248,43 @@ async function clickPopupOrReserveBtn(tabId, attempt = 0) {
   if (res?.action === 'popup') {
     saveLog(`이용안내 팝업 "${res.text}" 클릭`, 'success');
     // 팝업 닫힌 후 reservbtn 대기
-    setTimeout(() => clickReserveBtnInMainWorld(tabId), 600);
+    setTimeout(() => clickReserveBtnInMainWorld(tabId, 0, isWaiting), 600);
   } else if (res?.action === 'reservbtn_ready') {
     // 팝업 없고 reservbtn 바로 있음
-    clickReserveBtnInMainWorld(tabId);
+    clickReserveBtnInMainWorld(tabId, 0, isWaiting);
   } else {
     // 아직 대기 중
-    setTimeout(() => clickPopupOrReserveBtn(tabId, attempt + 1), 200);
+    setTimeout(() => clickPopupOrReserveBtn(tabId, attempt + 1, isWaiting), 200);
   }
 }
 
 // MAIN world에서 reservbtn 클릭
-async function clickReserveBtnInMainWorld(tabId, attempt = 0) {
+async function clickReserveBtnInMainWorld(tabId, attempt = 0, isWaiting = false) {
   if (!isRunning) return;
   if (attempt > 20) { saveLog('⚠️ reservbtn 못 찾음', 'warn'); return; }
 
   const results = await chrome.scripting.executeScript({
     target: { tabId },
     world: 'MAIN',
-    func: () => {
+    func: (isWaiting) => {
       const wrap = document.querySelector('.reservbtnWrap');
       if (!wrap) return { found: false };
-      const btn = wrap.querySelector('button.reservbtn:not([disabled]):not(.btn-disabled)');
-      if (!btn) return { found: false };
+      const allBtns = wrap.querySelectorAll('button.reservbtn:not([disabled]):not(.btn-disabled)');
+      if (!allBtns.length) return { found: false };
+
+      // 예약대기인 경우: "예약 대기 신청" 텍스트를 가진 버튼 우선 선택
+      let btn = null;
+      if (isWaiting) {
+        for (const b of allBtns) {
+          const text = b.textContent.trim();
+          if (text.includes('예약') && text.includes('대기') && text.includes('신청')) {
+            btn = b;
+            break;
+          }
+        }
+      }
+      // 예약대기 버튼 못 찾으면 기본 로직 (첫 번째 활성 버튼)
+      if (!btn) btn = allBtns[0];
 
       const key = Object.keys(btn).find(k => k.startsWith('__reactEventHandlers'));
       const onClick = btn[key]?.onClick;
@@ -288,20 +304,74 @@ async function clickReserveBtnInMainWorld(tabId, attempt = 0) {
         btn.click();
       }
       return { found: true, text: btn.textContent.trim() };
-    }
+    },
+    args: [isWaiting]
   }).catch(() => [{ result: { found: false } }]);
 
   const res = results?.[0]?.result;
   if (res?.found) {
     saveLog(`예매 버튼 클릭: "${res.text}"`, 'success');
-    // reservbtn 클릭 후 MutationObserver 활성화 → 이용안내 팝업 자동 처리
-    await chrome.scripting.executeScript({
-      target: { tabId }, world: 'MAIN',
-      func: () => { window.__ktxObserverActive = true; }
-    }).catch(() => {});
+    // reservbtn 클릭 후 팝업 적극 폴링 (MutationObserver 타이밍 이슈 방지)
+    setTimeout(() => clickPostReserveBtnPopup(tabId), 500);
   } else {
     // 아직 버튼 없으면 재시도
-    setTimeout(() => clickReserveBtnInMainWorld(tabId, attempt + 1), 300);
+    setTimeout(() => clickReserveBtnInMainWorld(tabId, attempt + 1, isWaiting), 300);
+  }
+}
+
+// reservbtn 클릭 후 나타나는 팝업 처리 (예약대기 신청 팝업 포함)
+async function clickPostReserveBtnPopup(tabId, attempt = 0) {
+  if (!isRunning) return;
+  if (attempt > 30) { saveLog('⚠️ 후속 팝업 못 찾음 — 수동 처리 필요', 'warn'); return; }
+
+  const results = await chrome.scripting.executeScript({
+    target: { tabId },
+    world: 'MAIN',
+    func: () => {
+      const YES = ['확인', '네', '예', '동의', '대기신청'];
+      const POPUP_SELS = [
+        '.ReactModal__Content', '.layerWrap', '.popup', '.pop_wrap',
+        '.modal', '.layer_pop', '[role="dialog"]', '[role="alertdialog"]',
+        '[class*="popup"]', '[class*="modal"]', '[class*="layer_pop"]'
+      ];
+
+      for (const sel of POPUP_SELS) {
+        const modals = document.querySelectorAll(sel);
+        for (const modal of modals) {
+          if (!modal.offsetParent && getComputedStyle(modal).display === 'none') continue;
+          const btns = modal.querySelectorAll('button, a, input[type="button"]');
+          for (const btn of btns) {
+            const text = (btn.textContent || btn.value || '').trim();
+            if (YES.includes(text) && !btn.disabled) {
+              const key = Object.keys(btn).find(k => k.startsWith('__reactEventHandlers'));
+              const onClick = btn[key]?.onClick;
+              if (onClick) {
+                onClick({
+                  target: btn, currentTarget: btn,
+                  bubbles: true, cancelable: true, defaultPrevented: false,
+                  preventDefault: function() { this.defaultPrevented = true; },
+                  stopPropagation: function() {},
+                  stopImmediatePropagation: function() {},
+                  nativeEvent: { preventDefault: function() {}, stopPropagation: function() {} },
+                  persist: function() {}, type: 'click',
+                });
+              } else {
+                btn.click();
+              }
+              return { found: true, text };
+            }
+          }
+        }
+      }
+      return { found: false };
+    }
+  }).catch(() => [{ result: { found: false } }]);
+
+  const res = results?.[0]?.result;
+  if (res?.found) {
+    saveLog(`팝업 "${res.text}" 클릭`, 'success');
+  } else {
+    setTimeout(() => clickPostReserveBtnPopup(tabId, attempt + 1), 300);
   }
 }
 
@@ -314,7 +384,7 @@ async function clickPopupConfirmInMainWorld(tabId, attempt = 0) {
     target: { tabId },
     world: 'MAIN',
     func: () => {
-      const YES = ['확인', '네', '예', '동의'];
+      const YES = ['확인', '네', '예', '동의', '대기신청'];
       const selectors = [
         '.ReactModal__Content', '.layerWrap', '.popup', '.pop_wrap',
         '.modal', '.layer_pop', '[role="dialog"]', '[role="alertdialog"]'

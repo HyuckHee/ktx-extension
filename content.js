@@ -513,7 +513,7 @@
 
   // ── MutationObserver: reservbtn 클릭 후에만 활성화 ──
   window.__ktxObserverActive = false;
-  const YES_TEXTS = new Set(['네', '확인', '예', '동의']);
+  const YES_TEXTS = new Set(['네', '확인', '예', '동의', '대기신청']);
 
   function tryClickYes(root) {
     if (!window.__ktxObserverActive) return false;
@@ -574,21 +574,33 @@
   // 일반실:   button.btn_bn-blue02.reservbtn (활성)
   // 입석+좌석: button.btn_by-blue02.reservbtn (활성)
   //            button.btn_bn-blue02.reservbtn.btn-disabled[disabled] (비활성 → 건너뜀)
-  function findReserveBtn() {
+  function findReserveBtn(isWaiting = false) {
     const wrap = document.querySelector('.reservbtnWrap');
     if (!wrap) return null;
 
     // disabled 아닌 button.reservbtn 만 선택
     const btns = wrap.querySelectorAll('button.reservbtn:not([disabled]):not(.btn-disabled)');
+    const visible = [];
     for (const btn of btns) {
       if (btn.offsetParent !== null && getComputedStyle(btn).display !== 'none') {
-        return btn;
+        visible.push(btn);
       }
     }
-    return null;
+    if (!visible.length) return null;
+
+    // 예약대기인 경우: "예약 대기 신청" 텍스트 버튼 우선
+    if (isWaiting) {
+      for (const btn of visible) {
+        const text = (btn.textContent || '').trim();
+        if (text.includes('예약') && text.includes('대기') && text.includes('신청')) {
+          return btn;
+        }
+      }
+    }
+    return visible[0];
   }
 
-  async function waitAndClickReserveBtn(maxWait = 6000, interval = 300) {
+  async function waitAndClickReserveBtn(maxWait = 6000, interval = 300, isWaiting = false) {
     const start = Date.now();
     showToast('예매 버튼 대기 중...', 'info');
 
@@ -601,7 +613,7 @@
           return;
         }
 
-        const btn = findReserveBtn();
+        const btn = findReserveBtn(isWaiting);
         if (btn) {
           clearInterval(timer);
           const text = (btn.textContent || btn.value || '').trim();
@@ -622,7 +634,7 @@
             const btns = modal.querySelectorAll('button, a');
             for (const b of btns) {
               const t = b.textContent.trim();
-              if (['확인','네','예','동의'].includes(t) && !b.disabled) {
+              if (['확인','네','예','동의','대기신청'].includes(t) && !b.disabled) {
                 clearInterval(popupTimer);
                 console.log(`[KTX 도우미] 이용안내 팝업 "${t}" 클릭`);
                 showToast(`이용안내 "${t}" 자동 클릭`, 'success');
@@ -685,9 +697,10 @@
         reactClick(link);
 
         // STEP 2: 1.5~2.5초 랜덤 대기 후 예매버튼 탐색
+        const isWaiting = box.classList.contains('wait') || box.classList.contains('yms_wait');
         const waitMs = Math.floor(1500 + Math.random() * 1000);
         console.log(`[KTX 도우미] 좌석 클릭 완료 — ${waitMs}ms 후 예매버튼 탐색`);
-        setTimeout(() => waitAndClickReserveBtn(6000, 300), waitMs);
+        setTimeout(() => waitAndClickReserveBtn(6000, 300, isWaiting), waitMs);
 
         return { found: true, trainInfo: `${trainName} ${seatLabel} ${price}` };
       }
