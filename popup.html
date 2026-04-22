@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title>KTX 자동 예매</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&display=swap');
+    * { margin:0; padding:0; box-sizing:border-box; }
+
+    body {
+      font-family: 'Noto Sans KR', sans-serif;
+      background: #0a0e1a;
+      color: #e8eaf0;
+      width: 280px;
+    }
+
+    .header {
+      background: linear-gradient(135deg, #0066cc, #003d99);
+      padding: 18px 20px 14px;
+    }
+    .header-top { display:flex; align-items:center; gap:10px; }
+    .title { font-size:15px; font-weight:700; color:#fff; }
+    .subtitle { font-size:11px; color:rgba(255,255,255,0.6); margin-top:2px; }
+
+    .status-bar {
+      display:flex; align-items:center; gap:8px;
+      padding: 9px 16px;
+      background: rgba(255,255,255,0.04);
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+    }
+    .dot {
+      width:8px; height:8px; border-radius:50%;
+      background:#444; transition:background 0.3s;
+    }
+    .dot.active { background:#00e676; box-shadow:0 0 6px #00e676; animation:pulse 1.5s infinite; }
+    .dot.searching { background:#ffb300; box-shadow:0 0 6px #ffb300; animation:pulse 0.8s infinite; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.35} }
+
+    .status-text { font-size:11px; color:#888; flex:1; }
+    .status-text.active { color:#00e676; }
+    .status-text.searching { color:#ffb300; }
+    .attempt { font-size:11px; color:#5c7aaa; }
+    .attempt span { color:#4da6ff; font-weight:700; }
+
+    .content { padding:16px; }
+
+    .guide {
+      background:#0d1525;
+      border:1px solid #1a2d4a;
+      border-radius:8px;
+      padding:12px 14px;
+      font-size:11px;
+      color:#7a9cc0;
+      line-height:1.8;
+      margin-bottom:14px;
+    }
+    .guide strong { color:#4da6ff; }
+
+    .btn-group { display:flex; gap:8px; }
+    .btn {
+      flex:1; padding:12px;
+      border:none; border-radius:8px;
+      font-size:13px; font-weight:600;
+      font-family:'Noto Sans KR',sans-serif;
+      cursor:pointer; transition:all 0.2s;
+    }
+    .btn-start {
+      background: linear-gradient(135deg,#0066cc,#004499);
+      color:#fff;
+    }
+    .btn-start:hover { background:linear-gradient(135deg,#0077ee,#0055bb); transform:translateY(-1px); }
+    .btn-stop {
+      background:#131c30; color:#ff5252;
+      border:1px solid #2a1515;
+    }
+    .btn-stop:hover { background:rgba(255,82,82,0.1); }
+
+    .option-row {
+      display:flex; align-items:center;
+      padding: 10px 0 12px;
+      border-top: 1px solid #131e30;
+    }
+    .toggle-label {
+      display:flex; align-items:center; gap:8px;
+      font-size:12px; color:#c0c8dc; cursor:pointer;
+      user-select:none;
+    }
+    .toggle-label input[type="checkbox"] { display:none; }
+    .toggle-box {
+      width:34px; height:18px; border-radius:10px;
+      background:#1e2d4a; position:relative;
+      transition:background 0.2s; flex-shrink:0;
+    }
+    .toggle-box::before {
+      content:''; position:absolute;
+      width:12px; height:12px; border-radius:50%;
+      background:#555; top:3px; left:3px;
+      transition:all 0.2s;
+    }
+    .toggle-label input:checked + .toggle-box { background:rgba(0,102,204,0.4); }
+    .toggle-label input:checked + .toggle-box::before { background:#0066cc; transform:translateX(16px); }
+
+    .log-section { margin-top:14px; }
+    .log-label { font-size:10px; color:#3a5070; text-transform:uppercase; letter-spacing:1px; margin-bottom:6px; }
+    .log-box {
+      background:#070d1a; border:1px solid #141e30;
+      border-radius:6px; height:110px; overflow-y:auto;
+      padding:8px; font-size:10px; font-family:'Courier New',monospace; line-height:1.7;
+    }
+    .log-box::-webkit-scrollbar { width:3px; }
+    .log-box::-webkit-scrollbar-thumb { background:#1e2d4a; border-radius:2px; }
+    .log-entry { color:#3a5a7a; }
+    .log-entry.info { color:#4da6ff; }
+    .log-entry.success { color:#00e676; }
+    .log-entry.warn { color:#ffb300; }
+    .log-entry.error { color:#ff5252; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="header-top">
+      <span style="font-size:22px">🚄</span>
+      <div>
+        <div class="title">KTX 자동 예매</div>
+        <div class="subtitle">빈자리 감지 · 자동 예매</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="status-bar">
+    <div class="dot" id="dot"></div>
+    <span class="status-text" id="statusText">대기 중</span>
+    <span class="attempt">시도 <span id="attemptCount">0</span>회</span>
+  </div>
+
+  <div class="content">
+    <div class="guide">
+      <strong>사용법</strong><br>
+      1. 코레일 예매 페이지 열기 &amp; 로그인<br>
+      2. 원하는 날짜/구간 검색<br>
+      3. ▶ 시작 버튼 클릭<br>
+      <br>
+      빈자리 발견 시 자동으로 예매 진행합니다.<br>
+      페이지 이동 시 자동 종료됩니다.
+    </div>
+
+    <div class="option-row">
+      <label class="toggle-label">
+        <input type="checkbox" id="allowStanding">
+        <span class="toggle-box"></span>
+        입석+좌석도 예매
+      </label>
+    </div>
+
+    <div class="btn-group">
+      <button class="btn btn-start" id="startBtn">▶ 시작</button>
+      <button class="btn btn-stop"  id="stopBtn">■ 중지</button>
+    </div>
+
+    <div class="log-section">
+      <div class="log-label">실행 로그</div>
+      <div class="log-box" id="logBox">
+        <div class="log-entry">시작 버튼을 눌러주세요.</div>
+      </div>
+    </div>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

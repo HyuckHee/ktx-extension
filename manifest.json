@@ -1,0 +1,51 @@
+{
+  "manifest_version": 3,
+  "name": "KTX 자동 예매 도우미",
+  "version": "1.4.6",
+  "description": "코레일 KTX 빈자리 자동 감지 및 선택 도우미",
+  "permissions": [
+    "activeTab",
+    "scripting",
+    "storage",
+    "alarms",
+    "tabs"
+  ],
+  "host_permissions": [
+    "https://www.letskorail.com/*",
+    "https://korail.com/*",
+    "https://www.korail.com/*",
+    "http://www.korail.com/*",
+    "http://korail.com/*"
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://www.letskorail.com/*",
+        "https://korail.com/*",
+        "https://www.korail.com/*",
+        "http://www.korail.com/*",
+        "http://korail.com/*"
+      ],
+      "all_frames": true,
+      "js": ["content.js"],
+      "css": ["content.css"],
+      "run_at": "document_idle"
+    }
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  }
+}
