@@ -144,6 +144,22 @@
           ">
         </span>
       </div>
+      <label style="display:flex;align-items:center;gap:3px;font-size:11px;color:#555;cursor:pointer;user-select:none;">
+        <input type="checkbox" id="__ktx_qwaitlist" style="margin:0;cursor:pointer;accent-color:#0066cc;">
+        예약대기
+      </label>
+      <label style="display:flex;align-items:center;gap:3px;font-size:11px;color:#555;cursor:pointer;user-select:none;">
+        <input type="checkbox" id="__ktx_qstanding" style="margin:0;cursor:pointer;accent-color:#0066cc;">
+        입석+좌석
+      </label>
+      <div style="display:flex;align-items:center;gap:3px;">
+        <span style="font-size:11px;color:#5c7aaa;">🔄</span>
+        <input type="number" id="__ktx_qinterval" min="3" max="60" step="1" value="5" title="새로고침 간격(초) · 최소 3초" style="
+          width:38px;padding:4px 4px;border:1px solid #c7d7f0;border-radius:8px;
+          background:#f5f8ff;color:#1a56db;font-size:11px;text-align:center;outline:none;
+        ">
+        <span style="font-size:11px;color:#5c7aaa;">초</span>
+      </div>
       <button id="__ktx_qstart" style="
         padding:6px 14px;border:none;border-radius:20px;
         background:linear-gradient(135deg,#0066cc,#004499);
@@ -159,18 +175,48 @@
 
     document.body.appendChild(bar);
 
-    // 저장된 설정 복원
+    // 저장된 설정 복원 (자리 없어 새로고침 시에도 체크 상태 유지)
     try {
-      chrome.storage.local.get(['ktxRunning', 'ktxAttempts', 'ktxTime1', 'ktxTime2'], (r) => {
-        if (r.ktxRunning) setQuickStatus('searching');
-        if (r.ktxAttempts) document.getElementById('__ktx_qcount').textContent = r.ktxAttempts + '회';
-        if (r.ktxTime1) {
-          document.getElementById('__ktx_time1').value = r.ktxTime1;
-          document.getElementById('__ktx_time2_wrap').style.display = 'flex';
-          if (r.ktxTime2) document.getElementById('__ktx_time2').value = r.ktxTime2;
+      chrome.storage.local.get(
+        ['ktxRunning', 'ktxAttempts', 'ktxTime1', 'ktxTime2', 'ktxAllowStanding', 'ktxAllowWaitlist', 'ktxRefreshInterval'],
+        (r) => {
+          if (r.ktxRunning) setQuickStatus('searching');
+          if (r.ktxAttempts) document.getElementById('__ktx_qcount').textContent = r.ktxAttempts + '회';
+          if (r.ktxTime1) {
+            document.getElementById('__ktx_time1').value = r.ktxTime1;
+            document.getElementById('__ktx_time2_wrap').style.display = 'flex';
+            if (r.ktxTime2) document.getElementById('__ktx_time2').value = r.ktxTime2;
+          }
+          const standingEl = document.getElementById('__ktx_qstanding');
+          const waitlistEl = document.getElementById('__ktx_qwaitlist');
+          const intervalEl = document.getElementById('__ktx_qinterval');
+          if (standingEl) standingEl.checked = !!r.ktxAllowStanding;
+          if (waitlistEl) waitlistEl.checked = !!r.ktxAllowWaitlist;
+          if (intervalEl && typeof r.ktxRefreshInterval === 'number' && r.ktxRefreshInterval >= 3) {
+            intervalEl.value = r.ktxRefreshInterval;
+          }
         }
-      });
+      );
     } catch(e) {}
+
+    // 체크박스/간격 변경 시 즉시 저장 (탐색 중에도 반영)
+    document.getElementById('__ktx_qstanding').addEventListener('change', (e) => {
+      try { chrome.storage.local.set({ ktxAllowStanding: e.target.checked }); } catch(err) {}
+    });
+    document.getElementById('__ktx_qwaitlist').addEventListener('change', (e) => {
+      try { chrome.storage.local.set({ ktxAllowWaitlist: e.target.checked }); } catch(err) {}
+    });
+    document.getElementById('__ktx_qinterval').addEventListener('change', (e) => {
+      let v = parseInt(e.target.value, 10);
+      if (isNaN(v) || v < 3) v = 3;
+      if (v > 60) v = 60;
+      e.target.value = v;
+      try {
+        chrome.storage.local.set({ ktxRefreshInterval: v });
+        // 탐색 중이면 새 간격으로 재시작 알림
+        chrome.runtime.sendMessage({ action: 'intervalChanged', interval: v }).catch(() => {});
+      } catch(err) {}
+    });
 
     // 시간1 선택 시 시간2 창 열기
     document.getElementById('__ktx_time1').addEventListener('change', () => {
@@ -190,8 +236,20 @@
       stopBtn.textContent = '■ 중지';
       const time1 = document.getElementById('__ktx_time1').value;
       const time2 = document.getElementById('__ktx_time2').value;
+      const allowStanding = document.getElementById('__ktx_qstanding').checked;
+      const allowWaitlist = document.getElementById('__ktx_qwaitlist').checked;
+      let refreshInterval = parseInt(document.getElementById('__ktx_qinterval').value, 10);
+      if (isNaN(refreshInterval) || refreshInterval < 3) refreshInterval = 3;
+      if (refreshInterval > 60) refreshInterval = 60;
+      document.getElementById('__ktx_qinterval').value = refreshInterval;
       try {
-        chrome.storage.local.set({ ktxRunning: true, ktxAttempts: 0, ktxTime1: time1, ktxTime2: time2 });
+        chrome.storage.local.set({
+          ktxRunning: true, ktxAttempts: 0,
+          ktxTime1: time1, ktxTime2: time2,
+          ktxAllowStanding: allowStanding,
+          ktxAllowWaitlist: allowWaitlist,
+          ktxRefreshInterval: refreshInterval,
+        });
         chrome.runtime.sendMessage({ action: 'start' }).catch(() => {});
       } catch(e) {}
       setQuickStatus('searching');
@@ -435,13 +493,15 @@
     }
 
     const allowStanding = config?.allowStanding || false;
+    const allowWaitlist = config?.allowWaitlist || false;
 
     for (const tck of tckLists) {
       for (const box of tck.querySelectorAll('.price_box')) {
-        // sold_out / sold_out_wait 클래스 있으면 건너뜀
-        // yms_wait = 입석+좌석 예매 가능 → 건너뛰지 않음
+        // sold_out = 매진 (항상 건너뜀)
+        // sold_out_wait = 예약대기 (체크박스 꺼져있으면 건너뜀)
+        // yms / yms_wait = 입석+좌석 (체크박스 꺼져있으면 건너뜀)
         if (box.classList.contains('sold_out')) continue;
-        if (box.classList.contains('sold_out_wait')) continue;
+        if (box.classList.contains('sold_out_wait') && !allowWaitlist) continue;
 
         // inner 텍스트가 "-" 이면 해당 좌석 없음
         if (box.querySelector('.inner')?.textContent.trim() === '-') continue;

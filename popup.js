@@ -31,10 +31,14 @@ function setStatus(state) {
 }
 
 // 저장된 상태 복원
-chrome.storage.local.get(['ktxRunning', 'ktxAttempts', 'ktxLogs', 'ktxAllowStanding'], (r) => {
+chrome.storage.local.get(['ktxRunning', 'ktxAttempts', 'ktxLogs', 'ktxAllowStanding', 'ktxAllowWaitlist', 'ktxRefreshInterval'], (r) => {
   if (r.ktxRunning) setStatus('searching');
   if (r.ktxAttempts) document.getElementById('attemptCount').textContent = r.ktxAttempts;
   if (r.ktxAllowStanding) document.getElementById('allowStanding').checked = r.ktxAllowStanding;
+  if (r.ktxAllowWaitlist) document.getElementById('allowWaitlist').checked = r.ktxAllowWaitlist;
+  if (typeof r.ktxRefreshInterval === 'number' && r.ktxRefreshInterval >= 3) {
+    document.getElementById('refreshInterval').value = r.ktxRefreshInterval;
+  }
   if (r.ktxLogs) {
     const box = document.getElementById('logBox');
     box.innerHTML = '';
@@ -48,9 +52,34 @@ chrome.storage.local.get(['ktxRunning', 'ktxAttempts', 'ktxLogs', 'ktxAllowStand
   }
 });
 
+// 체크박스 변경 시 즉시 저장 (새로고침 후에도 상태 유지)
+document.getElementById('allowStanding').addEventListener('change', (e) => {
+  chrome.storage.local.set({ ktxAllowStanding: e.target.checked });
+});
+document.getElementById('allowWaitlist').addEventListener('change', (e) => {
+  chrome.storage.local.set({ ktxAllowWaitlist: e.target.checked });
+});
+document.getElementById('refreshInterval').addEventListener('change', (e) => {
+  let v = parseInt(e.target.value, 10);
+  if (isNaN(v) || v < 3) v = 3;
+  if (v > 60) v = 60;
+  e.target.value = v;
+  chrome.storage.local.set({ ktxRefreshInterval: v });
+});
+
 document.getElementById('startBtn').addEventListener('click', () => {
   const allowStanding = document.getElementById('allowStanding').checked;
-  chrome.storage.local.set({ ktxRunning: true, ktxAttempts: 0, ktxLogs: [], ktxAllowStanding: allowStanding });
+  const allowWaitlist = document.getElementById('allowWaitlist').checked;
+  let refreshInterval = parseInt(document.getElementById('refreshInterval').value, 10);
+  if (isNaN(refreshInterval) || refreshInterval < 3) refreshInterval = 3;
+  if (refreshInterval > 60) refreshInterval = 60;
+  document.getElementById('refreshInterval').value = refreshInterval;
+  chrome.storage.local.set({
+    ktxRunning: true, ktxAttempts: 0, ktxLogs: [],
+    ktxAllowStanding: allowStanding,
+    ktxAllowWaitlist: allowWaitlist,
+    ktxRefreshInterval: refreshInterval,
+  });
   document.getElementById('logBox').innerHTML = '';
   document.getElementById('attemptCount').textContent = '0';
   setStatus('searching');

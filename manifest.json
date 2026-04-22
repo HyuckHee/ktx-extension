@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "KTX 자동 예매 도우미",
-  "version": "1.4.6",
+  "version": "1.4.7",
   "description": "코레일 KTX 빈자리 자동 감지 및 선택 도우미",
   "permissions": [
     "activeTab",

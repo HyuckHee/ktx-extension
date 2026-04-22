@@ -100,6 +100,22 @@
     .toggle-label input:checked + .toggle-box { background:rgba(0,102,204,0.4); }
     .toggle-label input:checked + .toggle-box::before { background:#0066cc; transform:translateX(16px); }
 
+    .interval-row {
+      display:flex; align-items:center; justify-content:space-between;
+      padding: 10px 0 12px;
+      border-top: 1px solid #131e30;
+      font-size:12px; color:#c0c8dc;
+    }
+    .interval-row input[type="number"] {
+      width:54px; padding:5px 6px;
+      background:#0d1525; border:1px solid #1a2d4a;
+      color:#4da6ff; border-radius:6px;
+      font-family:'Noto Sans KR',sans-serif; font-size:12px;
+      text-align:center; outline:none;
+    }
+    .interval-row input[type="number"]:focus { border-color:#0066cc; }
+    .interval-row .unit { color:#5c7aaa; font-size:11px; margin-left:6px; }
+
     .log-section { margin-top:14px; }
     .log-label { font-size:10px; color:#3a5070; text-transform:uppercase; letter-spacing:1px; margin-bottom:6px; }
     .log-box {
@@ -150,6 +166,22 @@
         <span class="toggle-box"></span>
         입석+좌석도 예매
       </label>
+    </div>
+
+    <div class="option-row">
+      <label class="toggle-label">
+        <input type="checkbox" id="allowWaitlist">
+        <span class="toggle-box"></span>
+        예약대기도 예매
+      </label>
+    </div>
+
+    <div class="interval-row">
+      <span>새로고침 간격</span>
+      <div>
+        <input type="number" id="refreshInterval" min="3" max="60" step="1" value="5">
+        <span class="unit">초 (최소 3초)</span>
+      </div>
     </div>
 
     <div class="btn-group">

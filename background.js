@@ -61,14 +61,14 @@ async function doSearch() {
 
     if (!isRunning) return; // 재주입 후 재확인
 
-    const { ktxAllowStanding, ktxTime1, ktxTime2 } = await chrome.storage.local.get(['ktxAllowStanding', 'ktxTime1', 'ktxTime2']);
+    const { ktxAllowStanding, ktxAllowWaitlist, ktxTime1, ktxTime2 } = await chrome.storage.local.get(['ktxAllowStanding', 'ktxAllowWaitlist', 'ktxTime1', 'ktxTime2']);
     if (!isRunning) return;
 
     // MAIN world에서 직접 탐색 + 클릭 실행
     const results = await chrome.scripting.executeScript({
       target: { tabId: tab.id },
       world: 'MAIN',
-      func: (allowStanding, time1, time2) => {
+      func: (allowStanding, allowWaitlist, time1, time2) => {
         const tckLists = document.querySelectorAll('.tckList');
         if (!tckLists.length) return { found: false, message: '열차 목록 없음' };
 
@@ -93,10 +93,12 @@ async function doSearch() {
             if (box.classList.contains('sold_out')) continue;
             if (box.classList.contains('active')) continue;
             if (box.classList.contains('wait') && !box.classList.contains('yms_wait')) continue;
-            if (box.classList.contains('sold_out_wait') && !allowStanding) continue;
+            // 예약대기(sold_out_wait) — 체크박스로 제어
+            if (box.classList.contains('sold_out_wait') && !allowWaitlist) continue;
             if (box.querySelector('.inner')?.textContent.trim() === '-') continue;
             const etcText = box.querySelector('.tck_etc_use')?.textContent.trim() || '';
             if (etcText === '매진') continue;
+            // 입석+좌석(yms/yms_wait) — 체크박스로 제어
             const isStanding = box.classList.contains('yms') || box.classList.contains('yms_wait');
             if (isStanding && !allowStanding) continue;
 
@@ -133,7 +135,7 @@ async function doSearch() {
         }
         return { found: false, message: `${tckLists.length}개 열차 확인 — 빈자리 없음` };
       },
-      args: [!!ktxAllowStanding, ktxTime1 || '', ktxTime2 || '']
+      args: [!!ktxAllowStanding, !!ktxAllowWaitlist, ktxTime1 || '', ktxTime2 || '']
     });
 
     const res = results?.[0]?.result;
@@ -164,18 +166,42 @@ async function doSearch() {
   }
 }
 
-function startSearch() {
+const MIN_REFRESH_SEC = 3;
+const DEFAULT_REFRESH_SEC = 5;
+
+async function getRefreshIntervalMs() {
+  const { ktxRefreshInterval } = await chrome.storage.local.get(['ktxRefreshInterval']);
+  let sec = parseInt(ktxRefreshInterval, 10);
+  if (isNaN(sec) || sec < MIN_REFRESH_SEC) sec = DEFAULT_REFRESH_SEC;
+  if (sec > 60) sec = 60;
+  return sec * 1000;
+}
+
+async function startSearch() {
   if (isRunning) stopSearch();
   isRunning = true;
   attemptCount = 0;
   logs.length = 0;
-  saveLog('탐색 시작', 'info');
+
+  const intervalMs = await getRefreshIntervalMs();
+  saveLog(`탐색 시작 (간격 ${intervalMs / 1000}초)`, 'info');
 
   doSearch();
   searchInterval = setInterval(() => {
     if (!isRunning) { clearInterval(searchInterval); return; }
     doSearch();
-  }, 5000); // 5초 간격 고정
+  }, intervalMs);
+}
+
+async function restartSearchInterval() {
+  if (!isRunning) return;
+  if (searchInterval) { clearInterval(searchInterval); searchInterval = null; }
+  const intervalMs = await getRefreshIntervalMs();
+  saveLog(`새로고침 간격 ${intervalMs / 1000}초로 변경`, 'info');
+  searchInterval = setInterval(() => {
+    if (!isRunning) { clearInterval(searchInterval); return; }
+    doSearch();
+  }, intervalMs);
 }
 
 // 좌석 클릭 후: 팝업 있으면 확인 → reservbtn / 팝업 없으면 바로 reservbtn
@@ -351,7 +377,8 @@ async function clickPopupConfirmInMainWorld(tabId, attempt = 0) {
 // 메시지 수신
 chrome.runtime.onMessage.addListener((msg, sender) => {
 
-  if (msg.action === 'start') startSearch();
+  if (msg.action === 'start') { startSearch(); }
+  if (msg.action === 'intervalChanged') { restartSearchInterval(); }
   if (msg.action === 'stop') {
     stopSearch('사용자가 중지했습니다.');
     // 알람 정지
