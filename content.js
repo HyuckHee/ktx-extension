@@ -133,14 +133,14 @@
       <span id="__ktx_qcount" style="font-size:10px;color:#999;">0회</span>
       <div style="display:flex;align-items:center;gap:4px;">
         <input type="time" id="__ktx_time1" style="
-          width:82px;padding:4px 5px;border:1px solid #1e2d4a;border-radius:8px;
-          background:#f5f8ff;color:#1a56db;font-size:11px;cursor:pointer;outline:none;border:1px solid #c7d7f0;
+          width:98px;padding:4px 6px;border:1px solid #c7d7f0;border-radius:8px;
+          background:#f5f8ff;color:#1a56db;font-size:11px;cursor:pointer;outline:none;
         ">
         <span id="__ktx_time2_wrap" style="display:none;align-items:center;gap:4px;">
           <span style="color:#5c7aaa;font-size:11px;">~</span>
           <input type="time" id="__ktx_time2" style="
-            width:82px;padding:4px 5px;border:1px solid #1e2d4a;border-radius:8px;
-            background:#f5f8ff;color:#1a56db;font-size:11px;cursor:pointer;outline:none;border:1px solid #c7d7f0;
+            width:98px;padding:4px 6px;border:1px solid #c7d7f0;border-radius:8px;
+            background:#f5f8ff;color:#1a56db;font-size:11px;cursor:pointer;outline:none;
           ">
         </span>
       </div>
