@@ -129,6 +129,7 @@
 
     bar.innerHTML = `
       <span id="__ktx_icon" style="font-size:16px;display:inline-block;">🚄</span>
+      <span id="__ktx_qver" style="font-size:9px;color:#aaa;line-height:1;"></span>
       <span id="__ktx_qstatus" style="font-size:11px;color:#666;min-width:60px;font-weight:500;">대기 중</span>
       <span id="__ktx_qcount" style="font-size:10px;color:#999;">0회</span>
       <div style="display:flex;align-items:center;gap:4px;">
@@ -174,6 +175,12 @@
     `;
 
     document.body.appendChild(bar);
+
+    // 버전 표시
+    try {
+      const ver = document.getElementById('__ktx_qver');
+      if (ver) ver.textContent = 'v' + chrome.runtime.getManifest().version;
+    } catch(e) {}
 
     // 저장된 설정 복원 (자리 없어 새로고침 시에도 체크 상태 유지)
     try {

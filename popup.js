@@ -1,5 +1,8 @@
 // popup.js
 
+// 버전 표시
+document.getElementById('appVersion').textContent = 'v' + chrome.runtime.getManifest().version;
+
 function addLog(msg, type = '') {
   const box = document.getElementById('logBox');
   const now = new Date();
