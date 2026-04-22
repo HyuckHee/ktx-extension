@@ -89,6 +89,36 @@
           60%    { transform:rotate(-12deg); }
           75%    { transform:rotate(0deg); }
         }
+        #__ktx_time_dropdown::after {
+          content: '';
+          position: absolute;
+          bottom: -6px;
+          left: 50%;
+          transform: translateX(-50%) rotate(45deg);
+          width: 12px;
+          height: 12px;
+          background: rgba(255,255,255,0.97);
+          box-shadow: 2px 2px 4px rgba(0,0,0,0.05);
+        }
+        #__ktx_quickbar select {
+          -webkit-appearance: none !important;
+          appearance: none !important;
+        }
+        #__ktx_quickbar select:hover {
+          background: rgba(0,102,204,0.1) !important;
+        }
+        #__ktx_quickbar input[type="checkbox"] {
+          -webkit-appearance: checkbox !important;
+          appearance: checkbox !important;
+          display: inline-block !important;
+          visibility: visible !important;
+          opacity: 1 !important;
+          width: 13px !important;
+          height: 13px !important;
+          pointer-events: auto !important;
+          position: static !important;
+          margin: 0 !important;
+        }
       `;
       document.head.appendChild(style);
     }
@@ -97,7 +127,7 @@
     let isDragging = false, dragOffsetX = 0, dragOffsetY = 0;
 
     bar.addEventListener('mousedown', (e) => {
-      if (e.target.tagName === 'BUTTON' || e.target.tagName === 'INPUT' || e.target.tagName === 'LABEL') return;
+      if (e.target.tagName === 'BUTTON' || e.target.tagName === 'INPUT' || e.target.tagName === 'LABEL' || e.target.tagName === 'SELECT') return;
       isDragging = true;
       const rect = bar.getBoundingClientRect();
       dragOffsetX = e.clientX - rect.left;
@@ -131,19 +161,55 @@
       <span id="__ktx_icon" style="font-size:16px;display:inline-block;">🚄</span>
       <span id="__ktx_qstatus" style="font-size:11px;color:#666;min-width:60px;font-weight:500;">대기 중</span>
       <span id="__ktx_qcount" style="font-size:10px;color:#999;">0회</span>
-      <div style="display:flex;align-items:center;gap:4px;">
-        <input type="time" id="__ktx_time1" style="
-          width:82px;padding:4px 5px;border:1px solid #1e2d4a;border-radius:8px;
-          background:#f5f8ff;color:#1a56db;font-size:11px;cursor:pointer;outline:none;border:1px solid #c7d7f0;
-        ">
-        <span id="__ktx_time2_wrap" style="display:none;align-items:center;gap:4px;">
-          <span style="color:#5c7aaa;font-size:11px;">~</span>
-          <input type="time" id="__ktx_time2" style="
-            width:82px;padding:4px 5px;border:1px solid #1e2d4a;border-radius:8px;
-            background:#f5f8ff;color:#1a56db;font-size:11px;cursor:pointer;outline:none;border:1px solid #c7d7f0;
-          ">
-        </span>
+      <div id="__ktx_time_trigger" style="
+        display:flex;align-items:center;gap:5px;padding:4px 10px;
+        background:#e8f0fe;border:1px solid transparent;border-radius:16px;
+        cursor:pointer;transition:all 0.15s;position:relative;
+      ">
+        <span style="font-size:12px;color:#1a56db;">🕐</span>
+        <span id="__ktx_time_label" style="font-size:11px;font-weight:500;color:#1a56db;white-space:nowrap;">전체 시간</span>
+        <span id="__ktx_time_chevron" style="font-size:8px;color:#1a56db;transition:transform 0.2s;">▼</span>
       </div>
+      <div id="__ktx_time_dropdown" style="
+        position:absolute;bottom:calc(100% + 10px);left:50%;transform:translateX(-50%);
+        background:rgba(255,255,255,0.97);border-radius:16px;
+        box-shadow:0 8px 32px rgba(0,0,0,0.18);padding:14px 16px 12px;width:300px;
+        opacity:0;pointer-events:none;transition:opacity 0.15s;z-index:10;
+      ">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+          <span style="font-size:12px;font-weight:600;color:#666;">탑승 시간대 선택</span>
+          <button id="__ktx_time_reset" style="
+            font-size:10px;color:#999;cursor:pointer;padding:2px 8px;border-radius:10px;
+            border:1px solid #e0e0e0;background:none;font-family:'Malgun Gothic',sans-serif;
+          ">초기화</button>
+        </div>
+        <div style="display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:12px;">
+          <div style="display:flex;align-items:center;gap:2px;background:#e8f0fe;border-radius:10px;padding:4px 6px;">
+            <select id="__ktx_h1" style="appearance:none;-webkit-appearance:none;border:none;background:transparent;color:#1a56db;font-size:13px;font-weight:600;font-family:'Malgun Gothic',sans-serif;cursor:pointer;outline:none;padding:2px 4px;text-align:center;border-radius:6px;"></select>
+            <span style="font-size:13px;font-weight:600;color:#1a56db;">:</span>
+            <select id="__ktx_m1" style="appearance:none;-webkit-appearance:none;border:none;background:transparent;color:#1a56db;font-size:13px;font-weight:600;font-family:'Malgun Gothic',sans-serif;cursor:pointer;outline:none;padding:2px 4px;text-align:center;border-radius:6px;"></select>
+          </div>
+          <span style="font-size:12px;color:#999;font-weight:500;">~</span>
+          <div style="display:flex;align-items:center;gap:2px;background:#e8f0fe;border-radius:10px;padding:4px 6px;">
+            <select id="__ktx_h2" style="appearance:none;-webkit-appearance:none;border:none;background:transparent;color:#1a56db;font-size:13px;font-weight:600;font-family:'Malgun Gothic',sans-serif;cursor:pointer;outline:none;padding:2px 4px;text-align:center;border-radius:6px;"></select>
+            <span style="font-size:13px;font-weight:600;color:#1a56db;">:</span>
+            <select id="__ktx_m2" style="appearance:none;-webkit-appearance:none;border:none;background:transparent;color:#1a56db;font-size:13px;font-weight:600;font-family:'Malgun Gothic',sans-serif;cursor:pointer;outline:none;padding:2px 4px;text-align:center;border-radius:6px;"></select>
+          </div>
+        </div>
+        <div style="position:relative;height:8px;background:#e8ecf2;border-radius:4px;margin-bottom:6px;">
+          <div id="__ktx_range_fill" style="position:absolute;top:0;height:100%;background:#0066cc;border-radius:4px;opacity:0.7;transition:left 0.15s,width 0.15s;"></div>
+        </div>
+        <div id="__ktx_range_hours" style="display:flex;justify-content:space-between;margin-bottom:10px;"></div>
+        <div id="__ktx_presets" style="display:flex;gap:4px;flex-wrap:wrap;"></div>
+      </div>
+      <label style="display:flex;align-items:center;gap:3px;font-size:10px;color:#555;cursor:pointer;user-select:none;white-space:nowrap;">
+        <input type="checkbox" id="__ktx_standing" style="width:13px;height:13px;cursor:pointer;-webkit-appearance:checkbox!important;appearance:checkbox!important;pointer-events:auto!important;">
+        입석
+      </label>
+      <label style="display:flex;align-items:center;gap:3px;font-size:10px;color:#555;cursor:pointer;user-select:none;white-space:nowrap;">
+        <input type="checkbox" id="__ktx_waiting" style="width:13px;height:13px;cursor:pointer;-webkit-appearance:checkbox!important;appearance:checkbox!important;pointer-events:auto!important;">
+        예약대기
+      </label>
       <button id="__ktx_qstart" style="
         padding:6px 14px;border:none;border-radius:20px;
         background:linear-gradient(135deg,#0066cc,#004499);
@@ -159,25 +225,170 @@
 
     document.body.appendChild(bar);
 
+    bar.style.overflow = 'visible';
+
+    // ── 시간 선택 드롭다운 초기화 ──
+    const _h1 = document.getElementById('__ktx_h1');
+    const _m1 = document.getElementById('__ktx_m1');
+    const _h2 = document.getElementById('__ktx_h2');
+    const _m2 = document.getElementById('__ktx_m2');
+    const _tLabel = document.getElementById('__ktx_time_label');
+    const _rFill = document.getElementById('__ktx_range_fill');
+    const _rHours = document.getElementById('__ktx_range_hours');
+    const _presets = document.getElementById('__ktx_presets');
+    const _trigger = document.getElementById('__ktx_time_trigger');
+    const _dropdown = document.getElementById('__ktx_time_dropdown');
+    const _chevron = document.getElementById('__ktx_time_chevron');
+
+    // 시/분 옵션 생성
+    for (let h = 5; h <= 23; h++) {
+      const v = String(h).padStart(2, '0');
+      _h1.appendChild(new Option(v, v));
+      _h2.appendChild(new Option(v, v));
+    }
+    [0,5,10,15,20,25,30,35,40,45,50,55].forEach(m => {
+      const v = String(m).padStart(2, '0');
+      _m1.appendChild(new Option(v, v));
+      _m2.appendChild(new Option(v, v));
+    });
+    _h1.value = '05'; _m1.value = '00';
+    _h2.value = '23'; _m2.value = '00';
+
+    // 시간 눈금 생성
+    for (let h = 5; h <= 23; h++) {
+      const el = document.createElement('div');
+      el.style.cssText = 'font-size:8px;color:#999;width:16px;text-align:center;';
+      el.textContent = h;
+      _rHours.appendChild(el);
+    }
+
+    // 프리셋 버튼 생성
+    const _presetData = [
+      { label: '새벽', t1: '05:00', t2: '07:00' },
+      { label: '오전', t1: '07:00', t2: '10:00' },
+      { label: '낮',   t1: '10:00', t2: '14:00' },
+      { label: '오후', t1: '14:00', t2: '18:00' },
+      { label: '저녁', t1: '18:00', t2: '22:00' },
+    ];
+    _presetData.forEach(p => {
+      const btn = document.createElement('button');
+      btn.textContent = p.label;
+      btn.dataset.t1 = p.t1;
+      btn.dataset.t2 = p.t2;
+      btn.style.cssText = 'padding:4px 10px;border-radius:12px;font-size:10px;font-weight:500;cursor:pointer;font-family:"Malgun Gothic",sans-serif;background:#eef1f6;color:#666;border:1px solid transparent;white-space:nowrap;transition:all 0.12s;';
+      btn.addEventListener('click', () => {
+        const [ph1, pm1] = p.t1.split(':');
+        const [ph2, pm2] = p.t2.split(':');
+        _h1.value = ph1; _m1.value = pm1;
+        _h2.value = ph2; _m2.value = pm2;
+        _renderTime();
+        _saveTime();
+      });
+      _presets.appendChild(btn);
+    });
+
+    function _getTime1() { return _h1.value + ':' + _m1.value; }
+    function _getTime2() { return _h2.value + ':' + _m2.value; }
+
+    function _renderTime() {
+      const t1 = _getTime1(), t2 = _getTime2();
+      const min1 = parseInt(_h1.value) * 60 + parseInt(_m1.value);
+      const min2 = parseInt(_h2.value) * 60 + parseInt(_m2.value);
+      const total = (23 - 5) * 60;
+      const pctL = ((min1 - 300) / total) * 100;
+      const pctR = ((min2 - 300) / total) * 100;
+      _rFill.style.left = pctL + '%';
+      _rFill.style.width = Math.max(0, pctR - pctL) + '%';
+
+      _tLabel.textContent = (t1 === '05:00' && t2 === '23:00') ? '전체 시간' : t1 + ' ~ ' + t2;
+
+      // 시간 눈금 하이라이트
+      Array.from(_rHours.children).forEach((el, i) => {
+        const h = 5 + i;
+        if (h * 60 >= min1 && h * 60 <= min2) {
+          el.style.color = '#1a56db';
+          el.style.fontWeight = '600';
+        } else {
+          el.style.color = '#999';
+          el.style.fontWeight = '';
+        }
+      });
+
+      // 프리셋 하이라이트
+      _presets.querySelectorAll('button').forEach(btn => {
+        if (btn.dataset.t1 === t1 && btn.dataset.t2 === t2) {
+          btn.style.background = '#0066cc';
+          btn.style.color = '#fff';
+          btn.style.borderColor = '#0066cc';
+        } else {
+          btn.style.background = '#eef1f6';
+          btn.style.color = '#666';
+          btn.style.borderColor = 'transparent';
+        }
+      });
+    }
+
+    function _saveTime() {
+      try { chrome.storage.local.set({ ktxTime1: _getTime1(), ktxTime2: _getTime2() }); } catch(e) {}
+    }
+
+    [_h1, _m1, _h2, _m2].forEach(sel => sel.addEventListener('change', () => { _renderTime(); _saveTime(); }));
+
+    // 드롭다운 토글
+    let _timeOpen = false;
+    _trigger.addEventListener('click', (e) => {
+      e.stopPropagation();
+      _timeOpen = !_timeOpen;
+      _dropdown.style.opacity = _timeOpen ? '1' : '0';
+      _dropdown.style.pointerEvents = _timeOpen ? 'auto' : 'none';
+      _trigger.style.borderColor = _timeOpen ? '#0066cc' : 'transparent';
+      _trigger.style.boxShadow = _timeOpen ? '0 0 0 2px rgba(0,102,204,0.15)' : 'none';
+      _chevron.style.transform = _timeOpen ? 'rotate(180deg)' : '';
+    });
+    document.addEventListener('click', (e) => {
+      if (!_trigger.contains(e.target) && !_dropdown.contains(e.target)) {
+        _timeOpen = false;
+        _dropdown.style.opacity = '0';
+        _dropdown.style.pointerEvents = 'none';
+        _trigger.style.borderColor = 'transparent';
+        _trigger.style.boxShadow = 'none';
+        _chevron.style.transform = '';
+      }
+    });
+
+    // 초기화 버튼
+    document.getElementById('__ktx_time_reset').addEventListener('click', () => {
+      _h1.value = '05'; _m1.value = '00';
+      _h2.value = '23'; _m2.value = '00';
+      _renderTime();
+      _saveTime();
+    });
+
+    _renderTime();
+
     // 저장된 설정 복원
     try {
-      chrome.storage.local.get(['ktxRunning', 'ktxAttempts', 'ktxTime1', 'ktxTime2'], (r) => {
+      chrome.storage.local.get(['ktxRunning', 'ktxAttempts', 'ktxTime1', 'ktxTime2', 'ktxAllowStanding', 'ktxAllowWaiting'], (r) => {
         if (r.ktxRunning) setQuickStatus('searching');
         if (r.ktxAttempts) document.getElementById('__ktx_qcount').textContent = r.ktxAttempts + '회';
-        if (r.ktxTime1) {
-          document.getElementById('__ktx_time1').value = r.ktxTime1;
-          document.getElementById('__ktx_time2_wrap').style.display = 'flex';
-          if (r.ktxTime2) document.getElementById('__ktx_time2').value = r.ktxTime2;
+        if (r.ktxTime1 && r.ktxTime2) {
+          const [rh1, rm1] = r.ktxTime1.split(':');
+          const [rh2, rm2] = r.ktxTime2.split(':');
+          _h1.value = rh1; _m1.value = rm1;
+          _h2.value = rh2; _m2.value = rm2;
+          _renderTime();
         }
+        if (r.ktxAllowStanding) document.getElementById('__ktx_standing').checked = true;
+        if (r.ktxAllowWaiting) document.getElementById('__ktx_waiting').checked = true;
       });
     } catch(e) {}
 
-    // 시간1 선택 시 시간2 창 열기
-    document.getElementById('__ktx_time1').addEventListener('change', () => {
-      const t1 = document.getElementById('__ktx_time1').value;
-      const wrap = document.getElementById('__ktx_time2_wrap');
-      wrap.style.display = t1 ? 'flex' : 'none';
-      if (!t1) document.getElementById('__ktx_time2').value = '';
+    // 체크박스 변경 시 즉시 저장
+    document.getElementById('__ktx_standing').addEventListener('change', (e) => {
+      try { chrome.storage.local.set({ ktxAllowStanding: e.target.checked }); } catch(e) {}
+    });
+    document.getElementById('__ktx_waiting').addEventListener('change', (e) => {
+      try { chrome.storage.local.set({ ktxAllowWaiting: e.target.checked }); } catch(e) {}
     });
 
     // 시작 버튼
@@ -188,10 +399,12 @@
       stopBtn.style.opacity = '1';
       stopBtn.style.cursor = 'pointer';
       stopBtn.textContent = '■ 중지';
-      const time1 = document.getElementById('__ktx_time1').value;
-      const time2 = document.getElementById('__ktx_time2').value;
+      const time1 = _getTime1();
+      const time2 = _getTime2();
+      const allowStanding = document.getElementById('__ktx_standing').checked;
+      const allowWaiting = document.getElementById('__ktx_waiting').checked;
       try {
-        chrome.storage.local.set({ ktxRunning: true, ktxAttempts: 0, ktxTime1: time1, ktxTime2: time2 });
+        chrome.storage.local.set({ ktxRunning: true, ktxAttempts: 0, ktxTime1: time1, ktxTime2: time2, ktxAllowStanding: allowStanding, ktxAllowWaiting: allowWaiting });
         chrome.runtime.sendMessage({ action: 'start' }).catch(() => {});
       } catch(e) {}
       setQuickStatus('searching');
@@ -435,25 +648,24 @@
     }
 
     const allowStanding = config?.allowStanding || false;
+    const allowWaiting = config?.allowWaiting || false;
 
     for (const tck of tckLists) {
       for (const box of tck.querySelectorAll('.price_box')) {
-        // sold_out / sold_out_wait 클래스 있으면 건너뜀
-        // yms_wait = 입석+좌석 예매 가능 → 건너뛰지 않음
+        // 완전 매진 → 항상 스킵
         if (box.classList.contains('sold_out')) continue;
+        // 대기열차 특실 매진 → 항상 스킵
         if (box.classList.contains('sold_out_wait')) continue;
 
         // inner 텍스트가 "-" 이면 해당 좌석 없음
         if (box.querySelector('.inner')?.textContent.trim() === '-') continue;
 
-        // .tck_etc_use 텍스트 확인
-        const etcUse = box.querySelector('.tck_etc_use');
-        const etcText = etcUse?.textContent.trim() || '';
-        if (etcText === '매진') continue;
-
-        // 입석+좌석 (yms / yms_wait) 체크박스 꺼져있으면 건너뜀
-        const isStanding = box.classList.contains('yms') || box.classList.contains('yms_wait');
-        if (isStanding && !allowStanding) continue;
+        // 입석+좌석 가능 → allowStanding 필요
+        if (box.classList.contains('yms') && !allowStanding) continue;
+        // 입석+좌석 예약대기 → allowStanding 또는 allowWaiting 중 하나만 있으면 OK
+        if (box.classList.contains('yms_wait') && !allowStanding && !allowWaiting) continue;
+        // 일반실 예약대기 → allowWaiting 필요
+        if (box.classList.contains('wait') && !allowWaiting) continue;
 
         const link = box.querySelector('a');
         if (!link) continue;
