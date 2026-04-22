@@ -12,7 +12,12 @@ function saveLog(msg, level = '') {
   logs.push(entry);
   if (logs.length > 50) logs.shift();
   chrome.storage.local.set({ ktxLogs: logs });
+  // popup/extension page로 전송
   chrome.runtime.sendMessage({ type: 'log', text: msg, level }).catch(() => {});
+  // content script(코레일 탭)로 전송
+  getKorailTab().then(tab => {
+    if (tab) chrome.tabs.sendMessage(tab.id, { type: 'log', text: msg, level }).catch(() => {});
+  }).catch(() => {});
 }
 
 function sendAttempt(n) {
@@ -61,14 +66,15 @@ async function doSearch() {
 
     if (!isRunning) return; // 재주입 후 재확인
 
-    const { ktxAllowStanding, ktxTime1, ktxTime2 } = await chrome.storage.local.get(['ktxAllowStanding', 'ktxTime1', 'ktxTime2']);
+    const { ktxAllowStanding, ktxAllowWaiting, ktxTime1, ktxTime2 } = await chrome.storage.local.get(['ktxAllowStanding', 'ktxAllowWaiting', 'ktxTime1', 'ktxTime2']);
+    console.log('[KTX BG] 설정:', { ktxAllowStanding, ktxAllowWaiting, ktxTime1, ktxTime2 });
     if (!isRunning) return;
 
     // MAIN world에서 직접 탐색 + 클릭 실행
     const results = await chrome.scripting.executeScript({
       target: { tabId: tab.id },
       world: 'MAIN',
-      func: (allowStanding, time1, time2) => {
+      func: (allowStanding, allowWaiting, time1, time2) => {
         const tckLists = document.querySelectorAll('.tckList');
         if (!tckLists.length) return { found: false, message: '열차 목록 없음' };
 
@@ -90,15 +96,19 @@ async function doSearch() {
           }
 
           for (const box of boxes) {
+            // 완전 매진 → 항상 스킵
             if (box.classList.contains('sold_out')) continue;
+            // 대기열차 특실 매진 → 항상 스킵
+            if (box.classList.contains('sold_out_wait')) continue;
             if (box.classList.contains('active')) continue;
-            if (box.classList.contains('wait') && !box.classList.contains('yms_wait')) continue;
-            if (box.classList.contains('sold_out_wait') && !allowStanding) continue;
             if (box.querySelector('.inner')?.textContent.trim() === '-') continue;
-            const etcText = box.querySelector('.tck_etc_use')?.textContent.trim() || '';
-            if (etcText === '매진') continue;
-            const isStanding = box.classList.contains('yms') || box.classList.contains('yms_wait');
-            if (isStanding && !allowStanding) continue;
+
+            // 입석+좌석 가능 → allowStanding 필요
+            if (box.classList.contains('yms') && !allowStanding) continue;
+            // 입석+좌석 예약대기 → allowStanding 또는 allowWaiting 중 하나만 있으면 OK
+            if (box.classList.contains('yms_wait') && !allowStanding && !allowWaiting) continue;
+            // 일반실 예약대기 → allowWaiting 필요
+            if (box.classList.contains('wait') && !allowWaiting) continue;
 
             const link = box.querySelector('a');
             if (!link) continue;
@@ -133,10 +143,11 @@ async function doSearch() {
         }
         return { found: false, message: `${tckLists.length}개 열차 확인 — 빈자리 없음` };
       },
-      args: [!!ktxAllowStanding, ktxTime1 || '', ktxTime2 || '']
+      args: [!!ktxAllowStanding, !!ktxAllowWaiting, ktxTime1 || '', ktxTime2 || '']
     });
 
     const res = results?.[0]?.result;
+    console.log('[KTX BG] 검색 결과:', JSON.stringify(res));
     if (!isRunning) return;
 
     if (res?.found) {
