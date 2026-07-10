@@ -369,7 +369,7 @@
     // 저장된 설정 복원
     try {
       chrome.storage.local.get(['ktxRunning', 'ktxAttempts', 'ktxTime1', 'ktxTime2', 'ktxAllowStanding', 'ktxAllowWaiting'], (r) => {
-        if (r.ktxRunning) setQuickStatus('searching');
+        if (r.ktxRunning && !location.href.includes('reservation/detail')) setQuickStatus('searching');
         if (r.ktxAttempts) document.getElementById('__ktx_qcount').textContent = r.ktxAttempts + '회';
         if (r.ktxTime1 && r.ktxTime2) {
           const [rh1, rm1] = r.ktxTime1.split(':');
@@ -791,7 +791,7 @@
   }
 
   chrome.storage.local.get(['ktxRunning'], (r) => {
-    if (r.ktxRunning) showToast('자동 예매 탐색 중...', 'info');
+    if (r.ktxRunning && !location.href.includes('reservation/detail')) showToast('자동 예매 탐색 중...', 'info');
   });
 
   // background 메시지 수신 → 퀵바 상태 업데이트
